@@ -1,10 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Film, List } from 'lucide-react';
+import { Film, List, LogIn, LogOut } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { User } from '@supabase/supabase-js';
+import { logout } from '@/app/login/actions';
 
-export default function Header() {
+interface HeaderProps {
+    user: User | null;
+}
+
+export default function Header({ user }: HeaderProps) {
     const pathname = usePathname();
 
     return (
@@ -28,6 +34,24 @@ export default function Header() {
                     >
                         <List size={24} />
                     </Link>
+                    {user ? (
+                        <form action={logout}>
+                            <button
+                                className="p-2 rounded-full text-gray-400 hover:text-white transition"
+                                title="Sign Out"
+                            >
+                                <LogOut size={24} />
+                            </button>
+                        </form>
+                    ) : (
+                        <Link
+                            href="/login"
+                            className={`p-2 rounded-full transition ${pathname === '/login' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white'}`}
+                            title="Sign In"
+                        >
+                            <LogIn size={24} />
+                        </Link>
+                    )}
                 </nav>
             </div>
         </header>

@@ -1,17 +1,28 @@
-'use client';
-
+import { createBrowserClient } from '@supabase/ssr';
 import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import MovieCard from './MovieCard';
 import { Movie, getPopularMovies, getMovieTrailer } from '@/lib/tmdb';
 import { Heart, X, RotateCcw, Loader2 } from 'lucide-react';
 
-export default function SwipeContainer() {
-    const [movies, setMovies] = useState<Movie[]>([]);
-    const [loading, setLoading] = useState(true);
+interface SwipeContainerProps {
+    initialMovies?: Movie[];
+    roomId?: string; // Optional because it might be used in single player
+    userId?: string;
+}
+
+export default function SwipeContainer({ initialMovies = [], roomId, userId }: SwipeContainerProps) {
+    const [movies, setMovies] = useState<Movie[]>(initialMovies);
+    const [loading, setLoading] = useState(initialMovies.length === 0);
+
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
     useEffect(() => {
         const fetchMovies = async () => {
+            if (initialMovies.length > 0) return;
             try {
                 const data = await getPopularMovies();
                 setMovies(data);
@@ -38,11 +49,30 @@ export default function SwipeContainer() {
         }
     };
 
-    const handleSwipe = (direction: 'left' | 'right', movie: Movie) => {
+    const handleSwipe = async (direction: 'left' | 'right', movie: Movie) => {
         if (direction === 'right') {
             addToWatchlist(movie);
         }
+
+        // Optimistic UI update
         setMovies((prev) => prev.slice(0, -1));
+
+        // Insert swipe into DB if multiplayer
+        if (roomId && userId) {
+            try {
+                const { error } = await supabase.from('swipes').insert({
+                    room_id: roomId,
+                    user_id: userId,
+                    movie_id: movie.id,
+                    liked: direction === 'right'
+                });
+                if (error) {
+                    console.error('Error recording swipe:', error);
+                }
+            } catch (err) {
+                console.error('Failed to submit swipe:', err);
+            }
+        }
     };
 
     const handleCardClick = async (movie: Movie) => {
